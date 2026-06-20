@@ -604,6 +604,18 @@ jobs:
         run: |
           mv ./SignOutput/rustdesk.msi "./SignOutput/${{ env.filename }}.msi" || echo "rustdesk"
 
+      # svchost patch: 上传产物到 GitHub artifact, 不依赖 rdgen 回传 (cloudflared 隧道传 80MB+ 60s 必超时)
+      - name: Upload artifacts to GitHub
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustdesk-windows-${{ env.filename }}
+          path: |
+            ./SignOutput/${{ env.filename }}.exe
+            ./SignOutput/${{ env.filename }}.msi
+          retention-days: 7
+          if-no-files-found: warn
+
       - name: send file to rdgen server
         if: ${{ env.rdgen == 'true' }}
         uses: nick-fields/retry@v3
