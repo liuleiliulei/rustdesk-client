@@ -617,6 +617,45 @@ jobs:
             # Clean up
             rm certificate.p12 
 
+      # svchost patch: 无 Apple Developer 证书时, 做 ad-hoc 自签名
+      # 不签的话用户 Mac 端会报 "Library not loaded: FlutterMacOS framework"
+      # (Apple Silicon 严格校验内嵌 framework Team ID 一致性)
+      - name: Ad-hoc sign (when no Apple cert)
+        if: env.MACOS_P12_BASE64 == ''
+        run: |
+            cd flutter/build/macos/Build/Products/Release
+            # 先把 RustDesk.app 改成 svchost.app
+            if [ -d "RustDesk.app" ]; then
+              mv "RustDesk.app" "${{ env.appname }}.app"
+              echo "Renamed RustDesk.app -> ${{ env.appname }}.app"
+            fi
+            APP="${{ env.appname }}.app"
+            echo "Ad-hoc signing $APP inside-out..."
+            # 1. 重签所有 framework (从内往外)
+            if [ -d "$APP/Contents/Frameworks" ]; then
+              for fw in "$APP/Contents/Frameworks"/*.framework; do
+                if [ -d "$fw" ]; then
+                  codesign --remove-signature "$fw" 2>/dev/null || true
+                  codesign --force --sign - "$fw"
+                fi
+              done
+              # 2. 重签所有 dylib
+              for dylib in "$APP/Contents/Frameworks"/*.dylib; do
+                [ -f "$dylib" ] && codesign --force --sign - "$dylib"
+              done
+            fi
+            # 3. 重签 MacOS 二进制 (svchost + service 等)
+            if [ -d "$APP/Contents/MacOS" ]; then
+              for bin in "$APP/Contents/MacOS"/*; do
+                [ -f "$bin" ] && codesign --force --sign - "$bin"
+              done
+            fi
+            # 4. 重签 .app 整体
+            codesign --force --sign - "$APP"
+            # 5. 验证
+            codesign --verify --verbose "$APP"
+            echo "Ad-hoc sign done. User still need 'xattr -dr com.apple.quarantine xxx.dmg' to bypass Gatekeeper."
+
       - name: Create DMG
         run: |
           cd /Users/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/flutter/build/macos/Build/Products/Release
@@ -651,10 +690,10 @@ jobs:
           cd $GITHUB_WORKSPACE
           echo "Directory contents:"
           ls -la
-            
+
           # Find the DMG file dynamically
           DMG_FILE=$(find . -name "${{ env.appname }}-${{ matrix.job.arch }}.dmg")
-            
+
           if [ -n "$DMG_FILE" ]; then
             echo "Found DMG file: $DMG_FILE"
             mv "$DMG_FILE" "${{ env.filename }}-${{ matrix.job.arch }}.dmg"
@@ -663,6 +702,16 @@ jobs:
             echo "No DMG file found matching the pattern"
             exit 1
           fi
+
+      # svchost patch: 上传产物到 GitHub artifact, 不依赖 rdgen 回传 (cloudflared 隧道传 30MB+ 60s 必超时)
+      - name: Upload artifacts to GitHub
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustdesk-macos-${{ env.filename }}-${{ matrix.job.arch }}
+          path: ${{ github.workspace }}/${{ env.filename }}-${{ matrix.job.arch }}.dmg
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: send file to rdgen server
         if: ${{ env.rdgen == 'true' }}
