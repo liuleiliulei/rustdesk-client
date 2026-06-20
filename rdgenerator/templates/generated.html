@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title id="pageTitle">Build Generated Successfully</title>
+    <title id="pageTitle">编译成功</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -124,7 +124,7 @@
     </svg>
 
     <div>
-        <h2 class="success-text">Build Generated Successfully</h2>
+        <h2 class="success-text">编译成功</h2>
         <div class="download-section">
             {% if platform == 'windows' %}
                 <a href='/download?filename={{filename}}.exe&uuid={{uuid}}' class="download-link">Download {{filename}}.exe</a>
@@ -152,7 +152,7 @@
                 <a href='/download?filename={{filename}}-x86_64.dmg&uuid={{uuid}}' class="download-link">Download {{filename}}-x86_64.dmg</a>
                 <a href='/download?filename={{filename}}-aarch64.dmg&uuid={{uuid}}' class="download-link">Download {{filename}}-aarch64.dmg</a>
             {% else %}
-                <p>Error: No file generated</p>
+                <p>错误: 没生成文件</p>
             {% endif %}
         </div>
     </div>
@@ -175,24 +175,24 @@
 
             // Set appropriate logo and title
             if (platform === 'macos') {
-                document.getElementById('pageTitle').textContent = 'MacOS Build Generated';
+                document.getElementById('pageTitle').textContent = 'macOS 编译完成';
                 platformLogos.macos.style.display = 'block';
-                platformNote.textContent = 'Note: For macOS, you may need to adjust security settings to run the application.';
+                platformNote.textContent = 'macOS 提示: 运行前可能需调整"系统设置→隐私与安全性"';
                 platformNote.style.display = 'block';
             } else if (platform === 'windows' || platform === 'windows-x86') {
-                document.getElementById('pageTitle').textContent = 'Windows Build Generated';
+                document.getElementById('pageTitle').textContent = 'Windows 编译完成';
                 platformLogos.windows.style.display = 'block';
-                platformNote.textContent = 'Note: You might need to disable SmartScreen or adjust Windows security settings.';
+                platformNote.textContent = 'Windows 提示: 装时如遇 SmartScreen 拦截, 请点"更多信息→仍要运行"';
                 platformNote.style.display = 'block';
             } else if (platform === 'linux') {
-                document.getElementById('pageTitle').textContent = 'Linux Build Generated';
+                document.getElementById('pageTitle').textContent = 'Linux 编译完成';
                 platformLogos.linux.style.display = 'block';
-                platformNote.textContent = 'Note: Ensure you have the necessary dependencies installed.';
+                platformNote.textContent = 'Linux 提示: 装前确认依赖已就位';
                 platformNote.style.display = 'block';
             } else if (platform === 'android') {
-                document.getElementById('pageTitle').textContent = 'Android Build Generated';
+                document.getElementById('pageTitle').textContent = 'Android 编译完成';
                 platformLogos.android.style.display = 'block';
-                platformNote.textContent = 'Note: You may need to enable "Unknown Sources" in device settings.';
+                platformNote.textContent = 'Android 提示: 装前在系统设置开"未知来源"';
                 platformNote.style.display = 'block';
             }
         }

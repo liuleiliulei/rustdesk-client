@@ -1,18 +1,36 @@
 services:
   rdgen:
-    # use bryangerlach/rdgen:latest for the latest build
-    #build: .
-    image: bryangerlach/rdgen:latest
+    # 本地构建 (改这两行: 注释掉 image, 启用 build:.)
+    build: .
+    # image: bryangerlach/rdgen:latest
     restart: unless-stopped
+    container_name: rustdesk-builder
     environment:
-      SECRET_KEY: "django-insecure-!(t-!f#6g#sr%yfded9(xha)g+=!6craeez^cp+*&bz_7vdk61"
-      GHUSER: "github_username"
-      GHBEARER: "github_access_token"
-      GENURL: "accessible_url_of_server"
+      # ===== Django 框架配置 =====
+      # 随机字符串, 启动前用以下命令生成:
+      # python3 -c "import secrets; print(secrets.token_hex(50))"
+      SECRET_KEY: "请-改-我-django-insecure-svchost-builder-please-change-this-key-before-prod"
+
+      # ===== GitHub 配置 (你必须填) =====
+      GHUSER: "liuleiliulei"
+      # GitHub Fine-grained Token, 去 https://github.com/settings/tokens?type=beta 创建
+      # 权限: 仅给你的 fork 仓库, 勾选 "Actions: Read and Write" + "Contents: Read and Write"
+      GHBEARER: "请-改-我-ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+      # ===== 访问 URL =====
+      # 本机访问就用 http://localhost:8000
+      GENURL: "http://localhost:8000"
+      PROTOCOL: "http"
+
+      # ===== zip 包加密 (可选, 留空 = 不加密) =====
       ZIP_PASSWORD: ""
+
+      # ===== 你 fork 的仓库名 + 分支 =====
+      # 你 fork wztx/rustdesk-client 后, 仓库名是 "rustdesk-client"
+      REPONAME: "rustdesk-client"
       GHBRANCH: "master"
-      PROTOCOL: "https"
-      REPONAME: "rdgen"
+
+      # ===== self-host runner 用 (本机部署不需要, 留空) =====
       SH_SECRET: ""
     ports:
       - "8000:8000"
