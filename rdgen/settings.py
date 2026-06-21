@@ -55,6 +55,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'rdgenerator.middleware.BasicAuthMiddleware',  # svchost patch: Basic Auth
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     #'django.middleware.csrf.CsrfViewMiddleware',
@@ -62,6 +63,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# svchost patch: Basic Auth credentials (从环境变量读, 空值=不启用 Basic Auth)
+BASIC_AUTH_USERNAME = os.environ.get('BASIC_AUTH_USERNAME', '')
+BASIC_AUTH_PASSWORD = os.environ.get('BASIC_AUTH_PASSWORD', '')
 
 ROOT_URLCONF = 'rdgen.urls'
 

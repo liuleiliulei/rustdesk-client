@@ -125,6 +125,16 @@
 
     <div>
         <h2 class="success-text">编译成功</h2>
+        {% if via_artifact %}
+            <!-- svchost patch: 走 GitHub artifact 下载, 不依赖失败的 rdgen 回传 -->
+            <div class="download-section" style="background: rgba(46, 204, 113, 0.15); border: 2px solid #27ae60;">
+                <p style="margin:0 0 10px 0; color:#27ae60; font-weight:600;">✅ 产物已在 GitHub artifact (走 upload-artifact 救援路径)</p>
+                <a href='/download_artifact?run_id={{run_id}}' class="download-link" style="background:#27ae60; font-size:1.1em;">
+                    ⬇️ 下载产物 zip (含 {{filename}}.exe + .msi)
+                </a>
+                <p style="margin:10px 0 0 0; color:#666; font-size:0.85em;">点击后浏览器直接下载 ~50MB zip, 解压拿到 exe/msi</p>
+            </div>
+        {% else %}
         <div class="download-section">
             {% if platform == 'windows' %}
                 <a href='/download?filename={{filename}}.exe&uuid={{uuid}}' class="download-link">Download {{filename}}.exe</a>
@@ -155,6 +165,7 @@
                 <p>错误: 没生成文件</p>
             {% endif %}
         </div>
+        {% endif %}
     </div>
 
     <div id="platformNote" class="platform-note"></div>

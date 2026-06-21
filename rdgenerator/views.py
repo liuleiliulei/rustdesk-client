@@ -1,12 +1,37 @@
 import io
 from pathlib import Path
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.core.files.base import ContentFile
 import os
 import secrets
 import re
 import requests
+
+# === svchost patch: 给 GitHub API 调用加 SSL retry ===
+import time
+def _gh_post(url, json=None, headers=None, max_retries=8, timeout=30):
+    last_err = None
+    for i in range(max_retries):
+        try:
+            return requests.post(url, json=json, headers=headers, timeout=timeout)
+        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            last_err = e
+            print(f"  [retry {i+1}/{max_retries}] {type(e).__name__}: {e}", flush=True)
+            time.sleep(min(2 ** i, 30))
+    raise last_err
+
+def _gh_get(url, headers=None, max_retries=5, timeout=30):
+    last_err = None
+    for i in range(max_retries):
+        try:
+            return requests.get(url, headers=headers, timeout=timeout)
+        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            last_err = e
+            print(f"  [retry {i+1}/{max_retries}] {type(e).__name__}", flush=True)
+            time.sleep(min(2 ** i, 30))
+    raise last_err
+# === end svchost patch ===
 import base64
 import json
 import uuid
@@ -90,6 +115,38 @@ def generator_view(request):
             enableCamera = form.cleaned_data['enableCamera']
             enableTerminal = form.cleaned_data['enableTerminal']
 
+            # === B 方案 Tier 1: UI 锁死 (16 个) ===
+            hideTray = form.cleaned_data.get('hideTray')
+            hideStopService = form.cleaned_data.get('hideStopService')
+            hideUsernameOnCard = form.cleaned_data.get('hideUsernameOnCard')
+            hideHelpCards = form.cleaned_data.get('hideHelpCards')
+            hideServerSettings = form.cleaned_data.get('hideServerSettings')
+            hideNetworkSettings = form.cleaned_data.get('hideNetworkSettings')
+            hideSecuritySettings = form.cleaned_data.get('hideSecuritySettings')
+            hideProxySettings = form.cleaned_data.get('hideProxySettings')
+            hideWebsocketSettings = form.cleaned_data.get('hideWebsocketSettings')
+            hideRemotePrinterSettings = form.cleaned_data.get('hideRemotePrinterSettings')
+            disableGroupPanel = form.cleaned_data.get('disableGroupPanel')
+            displayName = form.cleaned_data.get('displayName')
+            verificationMethod = form.cleaned_data.get('verificationMethod')
+            removePresetPasswordWarning = form.cleaned_data.get('removePresetPasswordWarning')
+            preElevateService = form.cleaned_data.get('preElevateService')
+            temporaryPasswordLength = form.cleaned_data.get('temporaryPasswordLength')
+            allowCmdSettingsWhenDisabled = form.cleaned_data.get('allowCmdSettingsWhenDisabled')
+            # === B 方案 Tier 2: 网络/安全加固 (12 个) ===
+            relayServer = form.cleaned_data.get('relayServer')
+            whitelist_val = form.cleaned_data.get('whitelist')
+            directAccessPort = form.cleaned_data.get('directAccessPort')
+            autoDisconnectTimeout = form.cleaned_data.get('autoDisconnectTimeout')
+            allowOnlyConnWindowOpen = form.cleaned_data.get('allowOnlyConnWindowOpen')
+            proxyUrl = form.cleaned_data.get('proxyUrl')
+            proxyUsername = form.cleaned_data.get('proxyUsername')
+            proxyPassword = form.cleaned_data.get('proxyPassword')
+            enablePrivacyMode = form.cleaned_data.get('enablePrivacyMode')
+            enablePermChangeInAcceptWindow = form.cleaned_data.get('enablePermChangeInAcceptWindow')
+            allowRemoteCmModification = form.cleaned_data.get('allowRemoteCmModification')
+            disableChangeId = form.cleaned_data.get('disableChangeId')
+
             if all(char.isascii() for char in filename):
                 filename = re.sub(r'[^\w\s-]', '_', filename).strip()
                 filename = filename.replace(" ","_")
@@ -99,8 +156,13 @@ def generator_view(request):
                 appname = "rustdesk"
             myuuid = str(uuid.uuid4())
             protocol = _settings.PROTOCOL
-            host = request.get_host()
-            full_url = f"{protocol}://{host}"
+            # svchost patch: 强制用 GENURL 而不是 request.get_host()
+            # 否则 runner 拿到的会是浏览器访问的 localhost:8000, 取不到 secrets
+            if _settings.GENURL:
+                full_url = _settings.GENURL
+            else:
+                host = request.get_host()
+                full_url = f"{protocol}://{host}"
             try:
                 iconfile = form.cleaned_data.get('iconfile')
                 if not iconfile:
@@ -199,12 +261,49 @@ def generator_view(request):
                 decodedCustom['override-settings']['enable-camera'] = 'Y' if enableCamera else 'N'
                 decodedCustom['override-settings']['enable-terminal'] = 'Y' if enableTerminal else 'N'
 
+            # === B 方案: Tier 1+2 注入到 override-settings (用户改不了) ===
+            # 工具: 把 cleanData 写到 override, 仅当 user 显式勾选/填值
+            _ov = decodedCustom['override-settings']
+            # Tier 1 — UI 锁死
+            if hideTray:                  _ov['hide-tray'] = 'Y'
+            if hideStopService:           _ov['hide-stop-service'] = 'Y'
+            if hideUsernameOnCard:        _ov['hide-username-on-card'] = 'Y'
+            if hideHelpCards:             _ov['hide-help-cards'] = 'Y'
+            if hideServerSettings:        _ov['hide-server-settings'] = 'Y'
+            if hideNetworkSettings:       _ov['hide-network-settings'] = 'Y'
+            if hideSecuritySettings:      _ov['hide-security-settings'] = 'Y'
+            if hideProxySettings:         _ov['hide-proxy-settings'] = 'Y'
+            if hideWebsocketSettings:     _ov['hide-websocket-settings'] = 'Y'
+            if hideRemotePrinterSettings: _ov['hide-remote-printer-settings'] = 'Y'
+            if disableGroupPanel:         _ov['disable-group-panel'] = 'Y'
+            if displayName:               _ov['display-name'] = displayName
+            if verificationMethod:        _ov['verification-method'] = verificationMethod  # 用户显式覆盖 rdgen 自动逻辑
+            if removePresetPasswordWarning: _ov['remove-preset-password-warning'] = 'Y'
+            if preElevateService:         _ov['pre-elevate-service'] = 'Y'
+            if temporaryPasswordLength:   _ov['temporary-password-length'] = str(temporaryPasswordLength)
+            if allowCmdSettingsWhenDisabled: _ov['allow-command-line-settings-when-settings-disabled'] = 'Y'
+            # Tier 2 — 网络/安全加固
+            if relayServer:               _ov['relay-server'] = relayServer
+            if whitelist_val:             _ov['whitelist'] = whitelist_val
+            if directAccessPort:          _ov['direct-access-port'] = str(directAccessPort)
+            if autoDisconnectTimeout:     _ov['auto-disconnect-timeout'] = str(autoDisconnectTimeout)
+            if allowOnlyConnWindowOpen:   _ov['allow-only-conn-window-open'] = 'Y'
+            if proxyUrl:                  _ov['proxy-url'] = proxyUrl
+            if proxyUsername:             _ov['proxy-username'] = proxyUsername
+            if proxyPassword:             _ov['proxy-password'] = proxyPassword
+            if enablePrivacyMode:         _ov['enable-privacy-mode'] = 'Y'
+            if enablePermChangeInAcceptWindow: _ov['enable-perm-change-in-accept-window'] = 'Y'
+            if allowRemoteCmModification: _ov['allow-remote-cm-modification'] = 'Y'
+            if disableChangeId:           _ov['disable-change-id'] = 'Y'
+
             for line in defaultManual.splitlines():
-                k, value = line.split('=')
+                if '=' not in line: continue
+                k, value = line.split('=', 1)
                 decodedCustom['default-settings'][k.strip()] = value.strip()
 
             for line in overrideManual.splitlines():
-                k, value = line.split('=')
+                if '=' not in line: continue
+                k, value = line.split('=', 1)
                 decodedCustom['override-settings'][k.strip()] = value.strip()
             
             decodedCustomJson = json.dumps(decodedCustom)
@@ -317,7 +416,7 @@ def generator_view(request):
                 status="Starting generator...please wait"
             )
             try:
-                response = requests.post(url, json=data, headers=headers)
+                response = _gh_post(url, json=data, headers=headers)
                 #print(response)
                 if response.status_code == 204 or response.status_code == 200:
                     github_data = response.json()
@@ -342,6 +441,27 @@ def generator_view(request):
 from django.shortcuts import render, get_object_or_404
 from django.db.models import Q
 
+def _gh_find_artifact(run_id):
+    """svchost patch: 查找 run 的 rustdesk-* artifact (绕开失败的 send-to-rdgen 步骤)"""
+    headers = {
+        "Authorization": f"Bearer {_settings.GHBEARER}",
+        "Accept": "application/vnd.github+json"
+    }
+    url = f"https://api.github.com/repos/{_settings.GHUSER}/{_settings.REPONAME}/actions/runs/{run_id}/artifacts"
+    try:
+        r = _gh_get(url, headers=headers)
+        if r.status_code != 200:
+            return None
+        arts = r.json().get('artifacts', [])
+        for a in arts:
+            # 我们的 upload-artifact 步骤命名: rustdesk-windows-<filename>
+            if a['name'].startswith('rustdesk-') and not a.get('expired', False):
+                return a
+    except Exception as e:
+        print(f"_gh_find_artifact error: {e}")
+    return None
+
+
 def check_for_file(request):
     filename = request.GET.get('filename')
     uuid = request.GET.get('uuid')
@@ -349,48 +469,84 @@ def check_for_file(request):
     gh_run = get_object_or_404(GithubRun, uuid=uuid)
     github_log_url = f"https://github.com/{_settings.GHUSER}/{_settings.REPONAME}/actions/runs/{gh_run.github_run_id}"
 
-    if gh_run.status not in ['success', 'failure', 'cancelled', 'timed_out', 'skipped']:
+    if gh_run.status not in ['success', 'failure', 'cancelled', 'timed_out', 'skipped', 'artifact_ok']:
         headers = {
             "Authorization": f"Bearer {_settings.GHBEARER}",
             "Accept": "application/vnd.github+json"
         }
         api_url = f"https://api.github.com/repos/{_settings.GHUSER}/{_settings.REPONAME}/actions/runs/{gh_run.github_run_id}"
-        
+
         try:
-            gh_response = requests.get(api_url, headers=headers)
+            gh_response = _gh_get(api_url, headers=headers)
             if gh_response.status_code == 200:
                 gh_data = gh_response.json()
-                
+
                 if gh_data['status'] == 'completed':
-                    gh_run.status = gh_data['conclusion']
+                    # svchost patch: send_file_to_rdgen 步骤总挂 → 整个 run conclusion=failure
+                    # 但 upload-artifact 步骤已经把 exe/msi 存到 GH artifact
+                    # 所以即使 conclusion=failure, 也要查 artifact 是否存在
+                    art = _gh_find_artifact(gh_run.github_run_id)
+                    if art:
+                        gh_run.status = 'artifact_ok'  # 自定义状态: 走 artifact 下载
+                    else:
+                        gh_run.status = gh_data['conclusion']
                     gh_run.save()
         except Exception as e:
             print(f"Error checking GitHub: {e}")
-    
-    if gh_run.status == "success":
+
+    if gh_run.status in ("success", "artifact_ok"):
         return render(request, 'generated.html', {
-            'filename': filename, 
-            'uuid': uuid, 
-            'platform': platform
+            'filename': filename,
+            'uuid': uuid,
+            'platform': platform,
+            'run_id': gh_run.github_run_id,
+            'via_artifact': gh_run.status == 'artifact_ok',
         })
-        
+
     elif gh_run.status in ['failure', 'cancelled', 'timed_out', 'skipped', 'action_required']:
         return render(request, 'failure.html', {
-            'log_url': github_log_url, 
-            'filename': filename, 
-            'uuid': uuid, 
+            'log_url': github_log_url,
+            'filename': filename,
+            'uuid': uuid,
             'platform': platform,
             'status': gh_run.status
         })
-        
+
     else:
         return render(request, 'waiting.html', {
-            'filename': filename, 
-            'uuid': uuid, 
-            'status': gh_run.status, 
-            'platform': platform, 
+            'filename': filename,
+            'uuid': uuid,
+            'status': gh_run.status,
+            'platform': platform,
             'log_url': github_log_url
         })
+
+
+def download_artifact(request):
+    """svchost patch: 后端代理下载 GitHub artifact zip (绕开 cloudflared)"""
+    run_id = request.GET.get('run_id')
+    if not run_id:
+        return JsonResponse({'error': 'run_id required'}, status=400)
+    art = _gh_find_artifact(run_id)
+    if not art:
+        return JsonResponse({'error': 'artifact not found for run ' + str(run_id)}, status=404)
+    headers = {
+        "Authorization": f"Bearer {_settings.GHBEARER}",
+        "Accept": "application/vnd.github+json"
+    }
+    zip_url = f"https://api.github.com/repos/{_settings.GHUSER}/{_settings.REPONAME}/actions/artifacts/{art['id']}/zip"
+    try:
+        r = requests.get(zip_url, headers=headers, stream=True, timeout=60)
+        if r.status_code != 200:
+            return JsonResponse({'error': f'GH API returned {r.status_code}'}, status=502)
+        fname = f"{art['name']}.zip"
+        resp = StreamingHttpResponse(r.iter_content(chunk_size=64*1024), content_type='application/zip')
+        resp['Content-Disposition'] = f'attachment; filename="{fname}"'
+        if 'content-length' in r.headers:
+            resp['Content-Length'] = r.headers['content-length']
+        return resp
+    except Exception as e:
+        return JsonResponse({'error': f'download error: {e}'}, status=502)
 
 def download(request):
     filename = request.GET['filename']
@@ -497,7 +653,7 @@ def startgh(request):
         'Authorization': 'Bearer '+_settings.GHBEARER,
         'X-GitHub-Api-Version': '2026-03-10'
     }
-    response = requests.post(url, json=data, headers=headers)
+    response = _gh_post(url, json=data, headers=headers)
     print(response)
     return HttpResponse(status=204)
 

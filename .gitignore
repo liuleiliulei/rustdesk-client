@@ -2,3 +2,16 @@
 db.sqlite3
 gunicorn.conf
 .venv
+
+# svchost patch: build artifacts
+build/
+deploy-bundle.tar.gz
+rdgen-svchost-*.tar.gz
+db.sqlite3
+exe/
+png/
+temp_zips/
+*.bak
+
+# 含密钥, 别 commit
+docker-compose.nas-cloudflared.yml

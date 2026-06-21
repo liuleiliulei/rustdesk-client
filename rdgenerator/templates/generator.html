@@ -350,7 +350,7 @@
         <div class="container">
             <div class="section">
                 <h2><i class="fas fa-lock"></i> 权限</h2>
-                    The following Permissions can be set as default (the user can change the settings) or override (the settings cannot be changed).<br>
+                    权限的两种模式: <b>默认值</b> = 客户端可以在设置里改回来; <b>强制覆盖</b> = 客户端改了也不生效, 永远是你设的。<br>
                     {{ form.permissionsDorO }}
                     <label for="{{ form.permissionsType.id_for_label }}">权限类型:</label>
                     {{ form.permissionsType }}<br><br>
@@ -374,13 +374,67 @@
                     <label for="{{ form.removeNewVersionNotif.id_for_label }}">{{ form.removeNewVersionNotif }} 移除新版本升级提示</label><br>
             </div>
 
+            <!-- ===== B 方案 Tier 1: 高级 UI 锁死 ===== -->
+            <div class="section">
+                <h2><i class="fas fa-lock"></i> 高级 UI 锁死 <span style="font-size:0.6em;color:#888;">(全部写到 override-settings, 用户改不了)</span></h2>
+                    <label for="{{ form.hideTray.id_for_label }}">{{ form.hideTray }} 隐藏系统托盘图标 (hide-tray, kiosk/反追踪)</label><br>
+                    <label for="{{ form.hideStopService.id_for_label }}">{{ form.hideStopService }} 隐藏"停止/切换服务"按钮 (hide-stop-service, 防客户停服务)</label><br>
+                    <label for="{{ form.hideUsernameOnCard.id_for_label }}">{{ form.hideUsernameOnCard }} 设备卡片隐藏 Windows 用户名 (hide-username-on-card)</label><br>
+                    <label for="{{ form.hideHelpCards.id_for_label }}">{{ form.hideHelpCards }} 隐藏 UAC/权限警告卡片 (hide-help-cards)</label><br>
+                    <label for="{{ form.disableGroupPanel.id_for_label }}">{{ form.disableGroupPanel }} 隐藏左侧群组面板 (disable-group-panel)</label><br>
+                    <br>
+                    <span style="color:#888;">设置面板分类入口锁定:</span><br>
+                    <label for="{{ form.hideServerSettings.id_for_label }}">{{ form.hideServerSettings }} 隐藏"服务器"设置入口</label><br>
+                    <label for="{{ form.hideNetworkSettings.id_for_label }}">{{ form.hideNetworkSettings }} 隐藏"网络"设置入口</label><br>
+                    <label for="{{ form.hideSecuritySettings.id_for_label }}">{{ form.hideSecuritySettings }} 隐藏"安全"设置入口</label><br>
+                    <label for="{{ form.hideProxySettings.id_for_label }}">{{ form.hideProxySettings }} 隐藏"代理"设置入口</label><br>
+                    <label for="{{ form.hideWebsocketSettings.id_for_label }}">{{ form.hideWebsocketSettings }} 隐藏"WebSocket"设置入口</label><br>
+                    <label for="{{ form.hideRemotePrinterSettings.id_for_label }}">{{ form.hideRemotePrinterSettings }} 隐藏"远程打印机"设置入口</label><br>
+                    <br>
+                    <label for="{{ form.displayName.id_for_label }}">自定义显示名 (display-name, 防泄露 Windows 用户名, 留空=用 Windows 用户名):</label>
+                    {{ form.displayName }}<br><br>
+                    <label for="{{ form.verificationMethod.id_for_label }}">接受密码类型 (verification-method, 覆盖 rdgen 偷偷绑定逻辑):</label>
+                    {{ form.verificationMethod }}<br><br>
+                    <label for="{{ form.removePresetPasswordWarning.id_for_label }}">{{ form.removePresetPasswordWarning }} 移除"预设密码"警告横幅 (用了固定密码必勾)</label><br>
+                    <label for="{{ form.preElevateService.id_for_label }}">{{ form.preElevateService }} 启动时自动提权 (pre-elevate-service, 便携版用)</label><br>
+                    <label for="{{ form.temporaryPasswordLength.id_for_label }}">临时密码长度 (temporary-password-length, 默认 6, 4-32):</label>
+                    {{ form.temporaryPasswordLength }}<br><br>
+                    <label for="{{ form.allowCmdSettingsWhenDisabled.id_for_label }}">{{ form.allowCmdSettingsWhenDisabled }} 允许命令行绕开"禁用设置"锁 (allow-command-line-settings-when-settings-disabled, 不勾=完全锁死, 推荐不勾)</label><br>
+            </div>
+
+            <!-- ===== B 方案 Tier 2: 网络与安全加固 ===== -->
+            <div class="section">
+                <h2><i class="fas fa-shield-virus"></i> 网络与安全加固 <span style="font-size:0.6em;color:#888;">(留空=不配)</span></h2>
+                    <label for="{{ form.relayServer.id_for_label }}">中继服务器地址 (relay-server, 默认跟 serverIP 同):</label>
+                    {{ form.relayServer }}<br><br>
+                    <label for="{{ form.whitelist.id_for_label }}">IP 白名单 (whitelist, 逗号分隔, 如 10.10.10.0/24,192.168.1.0/24):</label>
+                    {{ form.whitelist }}<br><br>
+                    <label for="{{ form.directAccessPort.id_for_label }}">直连访问端口 (direct-access-port, 默认 21118):</label>
+                    {{ form.directAccessPort }}<br><br>
+                    <label for="{{ form.autoDisconnectTimeout.id_for_label }}">自动断连超时分钟 (auto-disconnect-timeout, 配合"自动关闭连接"用):</label>
+                    {{ form.autoDisconnectTimeout }}<br><br>
+                    <label for="{{ form.allowOnlyConnWindowOpen.id_for_label }}">{{ form.allowOnlyConnWindowOpen }} 仅主界面打开时接受连接 (allow-only-conn-window-open)</label><br>
+                    <br>
+                    <span style="color:#888;">代理 (proxy-url/username/password, 走 socks5 出去):</span><br>
+                    <label for="{{ form.proxyUrl.id_for_label }}">代理 URL (如 socks5://1.2.3.4:1080):</label>
+                    {{ form.proxyUrl }}<br><br>
+                    <label for="{{ form.proxyUsername.id_for_label }}">代理用户名:</label>
+                    {{ form.proxyUsername }}<br><br>
+                    <label for="{{ form.proxyPassword.id_for_label }}">代理密码:</label>
+                    {{ form.proxyPassword }}<br><br>
+                    <label for="{{ form.enablePrivacyMode.id_for_label }}">{{ form.enablePrivacyMode }} 启用隐私模式 (enable-privacy-mode, 黑屏远控)</label><br>
+                    <label for="{{ form.enablePermChangeInAcceptWindow.id_for_label }}">{{ form.enablePermChangeInAcceptWindow }} 接受窗口允许调整权限 (enable-perm-change-in-accept-window)</label><br>
+                    <label for="{{ form.allowRemoteCmModification.id_for_label }}">{{ form.allowRemoteCmModification }} 允许远端修改 CM 设置 (allow-remote-cm-modification)</label><br>
+                    <label for="{{ form.disableChangeId.id_for_label }}">{{ form.disableChangeId }} 禁用修改本机 ID (disable-change-id, 反 ID 反复换)</label><br>
+            </div>
+
             <div class="section">
                 <h2><i class="fas fa-cog"></i> 其他</h2>
                     <label for="{{ form.removeWallpaper.id_for_label }}">{{ form.removeWallpaper }} 会话期间移除被控端壁纸</label><br>
-                    <a href="https://rustdesk.com/docs/en/self-host/client-configuration/advanced-settings/">Click here for a list of Default/Override settings</a>
-                    <label for="{{ form.defaultManual.id_for_label }}">Default settings (默认值, 用户可改)</label><br>
+                    <a href="https://rustdesk.com/docs/en/self-host/client-configuration/advanced-settings/">查看官方文档: 所有可用的 Default/Override 设置项</a>
+                    <label for="{{ form.defaultManual.id_for_label }}">默认值字段 (高级, 任意 RustDesk option, 用户在 UI 可改)</label><br>
                     {{ form.defaultManual }}<br><br>
-                    <label for="{{ form.overrideManual.id_for_label }}">Override settings (强制覆盖, 用户改不了)</label><br>
+                    <label for="{{ form.overrideManual.id_for_label }}">强制覆盖字段 (高级, 任意 RustDesk option, 用户改不了)</label><br>
                     {{ form.overrideManual }}<br><br>
             </div>
         </div>

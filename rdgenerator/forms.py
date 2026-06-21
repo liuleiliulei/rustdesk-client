@@ -78,6 +78,44 @@ class GenerateForm(forms.Form):
     #Other
     removeWallpaper = forms.BooleanField(initial=True, required=False)
 
+    #=== B 方案 Tier 1: 高级 UI 锁死 (16) - 全部写入 override-settings (用户改不了) ===
+    hideTray = forms.BooleanField(initial=False, required=False)
+    hideStopService = forms.BooleanField(initial=False, required=False)
+    hideUsernameOnCard = forms.BooleanField(initial=False, required=False)
+    hideHelpCards = forms.BooleanField(initial=False, required=False)
+    hideServerSettings = forms.BooleanField(initial=False, required=False)
+    hideNetworkSettings = forms.BooleanField(initial=False, required=False)
+    hideSecuritySettings = forms.BooleanField(initial=False, required=False)
+    hideProxySettings = forms.BooleanField(initial=False, required=False)
+    hideWebsocketSettings = forms.BooleanField(initial=False, required=False)
+    hideRemotePrinterSettings = forms.BooleanField(initial=False, required=False)
+    disableGroupPanel = forms.BooleanField(initial=False, required=False)
+    displayName = forms.CharField(required=False)
+    verificationMethod = forms.ChoiceField(choices=[
+        ('','跟随 rdgen 自动 (旧行为)'),
+        ('use-both-passwords', '两种密码都接受 (临时+永久)'),
+        ('use-permanent-password', '仅永久密码'),
+        ('use-temporary-password', '仅临时密码')
+    ], initial='', required=False)
+    removePresetPasswordWarning = forms.BooleanField(initial=False, required=False)
+    preElevateService = forms.BooleanField(initial=False, required=False)
+    temporaryPasswordLength = forms.IntegerField(required=False, min_value=4, max_value=32)
+    allowCmdSettingsWhenDisabled = forms.BooleanField(initial=False, required=False)
+
+    #=== B 方案 Tier 2: 网络与安全加固 (12) ===
+    relayServer = forms.CharField(required=False)
+    whitelist = forms.CharField(required=False)
+    directAccessPort = forms.IntegerField(required=False, min_value=1, max_value=65535)
+    autoDisconnectTimeout = forms.IntegerField(required=False, min_value=1)
+    allowOnlyConnWindowOpen = forms.BooleanField(initial=False, required=False)
+    proxyUrl = forms.CharField(required=False)
+    proxyUsername = forms.CharField(required=False)
+    proxyPassword = forms.CharField(widget=forms.PasswordInput(render_value=True), required=False)
+    enablePrivacyMode = forms.BooleanField(initial=False, required=False)
+    enablePermChangeInAcceptWindow = forms.BooleanField(initial=False, required=False)
+    allowRemoteCmModification = forms.BooleanField(initial=False, required=False)
+    disableChangeId = forms.BooleanField(initial=False, required=False)
+
     defaultManual = forms.CharField(widget=forms.Textarea, required=False)
     overrideManual = forms.CharField(widget=forms.Textarea, required=False)
 
